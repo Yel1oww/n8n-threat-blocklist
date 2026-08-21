@@ -150,6 +150,7 @@ The workflow files in this repo are exportable and contain no credentials — ev
 ├── 04-ti-collect.json     # daily: fetch feeds → SQLite → InfluxDB metrics
 ├── 05-ti-publish.json     # weekly: score → generate → commit to GitHub
 ├── ti-aggregate.py        # feed ingestion, scoring, list generation
+├── SETUP-threat-intel.md  # how to run this yourself. 
 └── lists/                 # generated output
 ```
 
