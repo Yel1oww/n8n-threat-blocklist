@@ -1,6 +1,6 @@
 # Aggressive blocklist
-# Generated 2026-08-21 14:59 UTC by n8n-threat-blocklist
-# 23797 domains
+# Generated 2026-08-21 15:06 UTC by n8n-threat-blocklist
+# 23796 domains
 # Includes phishing and possibly-compromised hosts. Higher coverage, higher false-positive risk.
 # Sources: abuse.ch (ThreatFox, URLhaus), blackbook, OTX, OpenPhish
 # Filtered against the Tranco top 1M. Report false positives via GitHub issues.
@@ -22931,7 +22931,6 @@ wuus.org.cn
 wv-meat.nl
 wv01gwbrgs.com
 wvilla.enterhello.com
-wvtransportes.com.br
 wvv-booking.nkamenik.com
 wvw-booking.nkamenik.com
 wwment.ml
