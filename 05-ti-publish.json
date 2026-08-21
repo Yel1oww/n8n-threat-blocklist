@@ -1,0 +1,466 @@
+{
+  "name": "Threat Intel \u2014 Weekly Publish",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                0
+              ],
+              "triggerAtHour": 8,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "sunday-08:00",
+      "name": "Sunday 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -a; . /etc/n8n-ti.env; set +a; /usr/local/bin/ti-aggregate.py --mode tranco < /dev/null"
+      },
+      "id": "refresh-tranco",
+      "name": "Refresh Tranco",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -a; . /etc/n8n-ti.env; set +a; /usr/local/bin/ti-aggregate.py --mode generate < /dev/null"
+      },
+      "id": "generate-lists",
+      "name": "Generate Lists",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $json.stdout || '';\nlet r;\ntry { r = JSON.parse(raw); }\ncatch (e) { throw new Error('ti-aggregate.py did not return JSON. stderr=' +\n                            ($json.stderr || '') + ' stdout=' + raw.slice(0, 400)); }\nif (!r.ok) throw new Error('ti-aggregate.py failed: ' + r.error);\nreturn [{ json: r }];\n"
+      },
+      "id": "parse-generate",
+      "name": "Parse Generate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// One item per file to publish. The git blob SHA is computed locally so we can\n// compare against GitHub and skip commits when nothing changed - otherwise the\n// repo accumulates an empty commit every week and the history is worthless.\nconst r = $json;\nreturn (r.files || []).map(f => ({ json: {\n  path: f.path, b64: f.b64, git_sha: f.git_sha, count: f.count,\n}}));\n"
+      },
+      "id": "split-files",
+      "name": "Split Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {
+          "reset": false
+        }
+      },
+      "id": "loop-files",
+      "name": "Loop Files",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.github.com/repos/REPLACE_OWNER/REPLACE_REPO/contents/{{ $json.path }}?ref=main",
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "fullResponse": true
+            }
+          }
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_GITHUB_PAT"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-threat-blocklist"
+            }
+          ]
+        }
+      },
+      "id": "get-remote-file",
+      "name": "Get Remote File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// GitHub needs the current blob SHA to update an existing file, and no SHA at\n// all to create a new one. n8n's full-response shape varies by version, so dig\n// for the body rather than assuming resp.body.\nconst resp = $json;\nconst meta = $('Loop Files').first().json;\n\nlet body = resp.body ?? resp.data ?? resp;\nif (typeof body === 'string') {\n  try { body = JSON.parse(body); } catch (e) { body = {}; }\n}\n\nconst status = Number(resp.statusCode ?? resp.status ?? 200);\nconst remoteSha = (body && typeof body === 'object' && body.sha) ? body.sha : null;\n\n// 404 means \"does not exist yet\" -> create. Anything else without a SHA means\n// we failed to parse the response, and committing would clobber the file.\nif (status !== 404 && !remoteSha) {\n  throw new Error(\n    'Could not read remote SHA. status=' + status +\n    ' top-level keys=' + Object.keys(resp).join(',') +\n    ' body type=' + typeof body +\n    ' body keys=' + (body && typeof body === 'object' ? Object.keys(body).join(',') : 'n/a'));\n}\n\nconst changed = remoteSha !== meta.git_sha;\n\nreturn [{ json: {\n  path: meta.path,\n  b64: meta.b64,\n  count: meta.count,\n  remote_sha: remoteSha,\n  changed,\n  action: remoteSha === null ? 'create' : (changed ? 'update' : 'unchanged'),\n  http_status: status,\n}}];\n"
+      },
+      "id": "decide-commit",
+      "name": "Decide Commit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.changed }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "changed",
+      "name": "Changed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.github.com/repos/REPLACE_OWNER/REPLACE_REPO/contents/{{ $json.path }}",
+        "options": {
+          "timeout": 120000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_GITHUB_PAT"
+            },
+            {
+              "name": "Accept",
+              "value": "application/vnd.github+json"
+            },
+            {
+              "name": "X-GitHub-Api-Version",
+              "value": "2022-11-28"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-threat-blocklist"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: \"chore: weekly blocklist update (\" + $json.path + \", \"            + $json.count + \" domains)\", content: $json.b64, branch: \"main\", ...($json.remote_sha ? { sha: $json.remote_sha } : {})}) }}"
+      },
+      "id": "commit-file",
+      "name": "Commit File",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1980,
+        360
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "skip",
+      "name": "Skip",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst stats = $('Parse Generate').first().json.stats;\nconst results = $input.all().map(i => i.json);\n\nconst changed = results.filter(r => r.changed);\nconst lines = results.map(r =>\n  `${r.changed ? '\\u2705' : '\\u2796'} \\`${r.path}\\` \u2014 ${r.action}` +\n  (r.count ? ` (${r.count.toLocaleString()} domains)` : ''));\n\nconst bySource = Object.entries(stats.by_source || {})\n  .sort((a, b) => b[1] - a[1])\n  .map(([s, n]) => `${s}: ${n.toLocaleString()}`).join(' \u00b7 ');\n\nreturn [{ json: {\n  published:        changed.length > 0,\n  files_changed:    changed.length,\n  detail:           lines,\n  strict_count:     stats.strict_count,\n  aggressive_count: stats.aggressive_count,\n  multi_source:     stats.multi_source_domains,\n  by_source:        bySource,\n  allowlist_skipped: stats.allowlist_skipped,\n  generated_at:     stats.generated_at,\n}}];\n"
+      },
+      "id": "build-summary",
+      "name": "Build Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst r = $json;\nconst stats = $('Parse Generate').first().json.stats;\nconst esc = s => String(s ?? 'unknown').replace(/,/g, '\\\\,').replace(/ /g, '\\\\ ').replace(/=/g, '\\\\=');\nconst ts = Math.floor(Date.now() / 1000);\n\nconst lines = [\n  `ti_publication strict=${r.strict_count}i,aggressive=${r.aggressive_count}i,` +\n  `multi_source=${r.multi_source}i,allowlist_skipped=${r.allowlist_skipped}i,` +\n  `files_changed=${r.files_changed}i ${ts}`,\n];\n\n// per-source inventory: how much of the list each feed is responsible for\nfor (const [src, n] of Object.entries(stats.by_source || {})) {\n  lines.push(`ti_inventory,source=${esc(src)} count=${n}i ${ts}`);\n}\n\nreturn [{ json: { lines: lines.join('\\n') } }];\n"
+      },
+      "id": "build-publish-metrics",
+      "name": "Build Publish Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8086/api/v2/write?orgID=REPLACE_ORG_ID&bucket=threat-intel&precision=s",
+        "options": {
+          "timeout": 120000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token REPLACE_INFLUX_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.lines }}"
+      },
+      "id": "write-publish-metrics",
+      "name": "Write Publish Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "Sunday 08:00": {
+      "main": [
+        [
+          {
+            "node": "Refresh Tranco",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Refresh Tranco": {
+      "main": [
+        [
+          {
+            "node": "Generate Lists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Lists": {
+      "main": [
+        [
+          {
+            "node": "Parse Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generate": {
+      "main": [
+        [
+          {
+            "node": "Split Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Files": {
+      "main": [
+        [
+          {
+            "node": "Loop Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Files": {
+      "main": [
+        [
+          {
+            "node": "Build Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Remote File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Summary": {
+      "main": [
+        [
+          {
+            "node": "Build Publish Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Publish Metrics": {
+      "main": [
+        [
+          {
+            "node": "Write Publish Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Remote File": {
+      "main": [
+        [
+          {
+            "node": "Decide Commit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide Commit": {
+      "main": [
+        [
+          {
+            "node": "Changed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Changed": {
+      "main": [
+        [
+          {
+            "node": "Commit File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Commit File": {
+      "main": [
+        [
+          {
+            "node": "Loop Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip": {
+      "main": [
+        [
+          {
+            "node": "Loop Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": [
+    {
+      "name": "threat-intel"
+    }
+  ],
+  "active": false,
+  "pinData": {}
+}

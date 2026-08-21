@@ -1,0 +1,214 @@
+{
+  "name": "Threat Intel \u2014 Daily Collect",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "triggerAtHour": 3,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      },
+      "id": "daily-03:00",
+      "name": "Daily 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "set -a; . /etc/n8n-ti.env; set +a; /usr/local/bin/ti-aggregate.py --mode fetch < /dev/null"
+      },
+      "id": "fetch-feeds",
+      "name": "Fetch Feeds",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $json.stdout || '';\nlet r;\ntry { r = JSON.parse(raw); }\ncatch (e) { throw new Error('ti-aggregate.py did not return JSON. stderr=' +\n                            ($json.stderr || '') + ' stdout=' + raw.slice(0, 400)); }\nif (!r.ok) throw new Error('ti-aggregate.py failed: ' + r.error);\nreturn [{ json: r }];\n"
+      },
+      "id": "parse-fetch",
+      "name": "Parse Fetch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst r = $json;\nconst esc = s => String(s ?? 'unknown').replace(/,/g, '\\\\,').replace(/ /g, '\\\\ ').replace(/=/g, '\\\\=');\nconst ts = Math.floor(new Date(r.run_ts).getTime() / 1000);\nconst lines = [];\n\nfor (const [src, s] of Object.entries(r.sources || {})) {\n  lines.push(`ti_source,source=${esc(src)} fetched=${s.fetched}i,` +\n             `accepted=${s.accepted}i,failed=${s.error ? 1 : 0}i ${ts}`);\n}\nlines.push(`ti_summary total_domains=${r.total_domains}i,` +\n           `aged_out=${r.aged_out}i,allowlist_saves=${r.allowlist_saves}i ${ts}`);\n\nreturn [{ json: { lines: lines.join('\\n'),\n                  error_count: Object.keys(r.errors || {}).length } }];\n"
+      },
+      "id": "build-influx-lines",
+      "name": "Build Influx Lines",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8086/api/v2/write?orgID=REPLACE_ORG_ID&bucket=threat-intel&precision=s",
+        "options": {
+          "timeout": 120000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token REPLACE_INFLUX_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "text/plain",
+        "body": "={{ $json.lines }}"
+      },
+      "id": "write-influxdb",
+      "name": "Write InfluxDB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ Object.keys($json.errors || {}).length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "feed-errors",
+      "name": "Feed Errors",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "errorMessage": "={{ 'Feed collection failed: ' + Object.entries($json.errors || {}).map(e => e[0] + ' (' + String(e[1]).slice(0,120) + ')').join('; ') }}"
+      },
+      "id": "raise-feed-error",
+      "name": "Raise Feed Error",
+      "type": "n8n-nodes-base.stopAndError",
+      "typeVersion": 1,
+      "position": [
+        880,
+        180
+      ]
+    }
+  ],
+  "connections": {
+    "Daily 03:00": {
+      "main": [
+        [
+          {
+            "node": "Fetch Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Feeds": {
+      "main": [
+        [
+          {
+            "node": "Parse Fetch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Fetch": {
+      "main": [
+        [
+          {
+            "node": "Build Influx Lines",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Feed Errors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Influx Lines": {
+      "main": [
+        [
+          {
+            "node": "Write InfluxDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Feed Errors": {
+      "main": [
+        [
+          {
+            "node": "Raise Feed Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all"
+  },
+  "tags": [
+    {
+      "name": "threat-intel"
+    }
+  ],
+  "active": false,
+  "pinData": {}
+}
