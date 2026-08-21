@@ -1,5 +1,5 @@
 # Strict blocklist
-# Generated 2026-08-21 14:59 UTC by n8n-threat-blocklist
+# Generated 2026-08-21 15:06 UTC by n8n-threat-blocklist
 # 403 domains
 # Malware-dedicated infrastructure only. Conservative; safe to subscribe blind.
 # Sources: abuse.ch (ThreatFox, URLhaus), blackbook, OTX, OpenPhish
