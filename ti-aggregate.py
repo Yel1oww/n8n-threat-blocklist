@@ -59,6 +59,17 @@ UA = "n8n-threat-blocklist/1.0 (+https://github.com/Yel1oww/n8n-threat-blocklist
 # tier 1 = high precision, safe to act on alone
 # tier 2 = good, wants corroboration for the strict list
 # tier 3 = noisy / mostly compromised sites, aggressive list only
+# Feeds that return their COMPLETE current list on every fetch. For these,
+# absence from a response is meaningful - the source removed the domain - so we
+# mirror them. Incremental feeds return a moving window, where absence only
+# means "outside the window", and those accumulate and age out instead.
+SNAPSHOT_FEEDS = {"blackbook", "openphish"}
+
+# A snapshot fetch that returns far fewer items than we already hold is almost
+# certainly a truncated or partial response. Pruning on that would gut the list,
+# so below this ratio we keep the old rows and flag it instead.
+SNAPSHOT_MIN_RATIO = 0.5
+
 SOURCE_TIERS = {
     "blackbook": 2,
     "threatfox": 1,
@@ -131,6 +142,90 @@ def http(url, data=None, headers=None, timeout=120):
         req.add_header(k, v)
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
+
+
+# Domains this tool depends on to function. A public blocklist that can block
+# its own distribution URL is a failure mode every subscriber inherits: their
+# resolver blocks the raw file, the next update silently fails, and the list
+# quietly goes stale. These are never publishable, whatever a feed reports -
+# and feeds DO report some of them in good faith, because malware really is
+# hosted on public code and file hosts.
+INFRA_ALLOWLIST = {
+    # list distribution
+    "raw.githubusercontent.com", "github.com", "api.github.com",
+    "objects.githubusercontent.com", "codeload.github.com",
+    # feed sources
+    "abuse.ch", "urlhaus.abuse.ch", "urlhaus-api.abuse.ch",
+    "threatfox.abuse.ch", "threatfox-api.abuse.ch", "auth.abuse.ch",
+    "openphish.com", "otx.alienvault.com", "alienvault.com",
+    "tranco-list.eu",
+    # common resolver / OS infrastructure worth never breaking
+    "cloudflare-dns.com", "dns.google", "one.one.one.one",
+}
+
+# Suffixes where each subdomain belongs to a DIFFERENT party. A Tranco entry for
+# one of these says the *platform* is popular, not that any given subdomain is
+# trustworthy - and free dynamic-DNS and static-hosting providers are the classic
+# home of malware C2. Parent matching must stop here, or allowlisting duckdns.org
+# silently unblocks every C2 domain hosted on it.
+#
+# This is a hand-maintained subset of the Public Suffix List's private section,
+# limited to providers that actually show up in threat feeds.
+SHARED_SUFFIXES = {
+    # dynamic DNS
+    "duckdns.org", "ddns.net", "no-ip.org", "no-ip.com", "no-ip.biz",
+    "noip.at", "noip.me", "hopto.org", "zapto.org", "sytes.net",
+    "serveo.net", "myftp.org", "myftp.biz", "servebeer.com",
+    "serveblog.net", "servegame.com", "ydns.eu", "kozow.com", "loseyourip.com",
+    "dynu.net", "freedynamicdns.net", "mooo.com", "chickenkiller.com",
+    # wildcard DNS - resolve to arbitrary IPs by construction
+    "sslip.io", "nip.io", "traefik.me", "localtest.me",
+    # tunnels and edge functions
+    "ngrok.io", "ngrok-free.app", "trycloudflare.com", "workers.dev",
+    "loca.lt", "serveo.net",
+    # free static hosting / pages
+    "github.io", "pages.dev", "netlify.app", "vercel.app", "herokuapp.com",
+    "web.app", "firebaseapp.com", "glitch.me", "repl.co", "onrender.com",
+    "surge.sh", "gitlab.io", "bitbucket.io", "neocities.org",
+    # object storage
+    "s3.amazonaws.com", "blob.core.windows.net", "storage.googleapis.com",
+    "r2.dev", "digitaloceanspaces.com", "backblazeb2.com",
+    # free hosting / link shorteners frequently abused
+    "000webhostapp.com", "weebly.com", "wixsite.com", "blogspot.com",
+    "xsph.ru", "tw1.ru", "temp.swtest.ru",
+}
+
+
+def parent_domains(domain: str):
+    """Yield the domain and every parent down to two labels.
+
+    foo.bar.example.com -> foo.bar.example.com, bar.example.com, example.com
+    """
+    parts = domain.split(".")
+    for i in range(len(parts) - 1):
+        yield ".".join(parts[i:])
+
+
+def is_allowlisted(domain: str, tranco: set, manual: set) -> bool:
+    """Allowlist matching must consider parent domains, not just exact strings.
+
+    Malware really is hosted on popular user-content hosts - raw.githubusercontent.com,
+    storage buckets, CDNs - so feeds report those subdomains in good faith.
+    Tranco lists the registrable domain (githubusercontent.com), so an exact-match
+    check leaves every such subdomain unprotected. Blocking them breaks far more
+    than it protects.
+    """
+    for d in parent_domains(domain):
+        # explicit human decisions and our own infrastructure always win,
+        # even over the shared-suffix rule below
+        if d in manual or d in INFRA_ALLOWLIST:
+            return True
+        # never let a shared-hosting suffix vouch for its subdomains
+        if d in SHARED_SUFFIXES:
+            return False
+        if d in tranco:
+            return True
+    return False
 
 
 def clean_domain(value: str):
@@ -358,9 +453,10 @@ def mode_fetch(conn, opts) -> dict:
             continue
 
         accepted = 0
+        seen_domains = set()
         for it in items:
             d = it["domain"]
-            if d in tranco or d in manual:
+            if is_allowlisted(d, tranco, manual):
                 conn.execute(
                     "INSERT OR REPLACE INTO blocked_by_allowlist VALUES (?,?,?)",
                     (d, name, run_ts))
@@ -377,11 +473,32 @@ def mode_fetch(conn, opts) -> dict:
                      threat_type= excluded.threat_type""",
                 (d, name, tier, it.get("threat_type"), it.get("confidence", 0),
                  it.get("dedicated", 0), run_ts, run_ts))
+            seen_domains.add(d)
             accepted += 1
+
+        pruned = 0
+        if name in SNAPSHOT_FEEDS:
+            held = conn.execute(
+                "SELECT COUNT(*) FROM indicators WHERE source=?", (name,)
+            ).fetchone()[0]
+            # accepted counts rows we just stamped with this run_ts
+            if held == 0 or accepted >= held * SNAPSHOT_MIN_RATIO:
+                conn.execute("CREATE TEMP TABLE IF NOT EXISTS _seen "
+                             "(domain TEXT PRIMARY KEY)")
+                conn.execute("DELETE FROM _seen")
+                conn.executemany("INSERT OR IGNORE INTO _seen VALUES (?)",
+                                 [(d,) for d in seen_domains])
+                pruned = conn.execute(
+                    "DELETE FROM indicators WHERE source=? AND domain NOT IN "
+                    "(SELECT domain FROM _seen)", (name,)).rowcount
+            else:
+                errors[name] = (f"snapshot guard tripped: fetch returned "
+                                f"{accepted} but we hold {held}; skipped prune")
 
         conn.execute("INSERT OR REPLACE INTO runs VALUES (?,?,?,?,NULL)",
                      (run_ts, name, len(items), accepted))
         summary[name] = {"fetched": len(items), "accepted": accepted,
+                         "pruned": pruned, "snapshot": name in SNAPSHOT_FEEDS,
                          "error": False}
 
     cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)) \
@@ -395,6 +512,11 @@ def mode_fetch(conn, opts) -> dict:
         "aged_out": aged,
         "allowlist_saves": conn.execute(
             "SELECT COUNT(*) FROM blocked_by_allowlist").fetchone()[0],
+        "infra_saves": [
+            r["domain"] for r in conn.execute(
+                "SELECT domain FROM blocked_by_allowlist")
+            if any(x in INFRA_ALLOWLIST for x in parent_domains(r["domain"]))
+        ],
         "total_domains": conn.execute(
             "SELECT COUNT(DISTINCT domain) FROM indicators").fetchone()[0],
     }
@@ -440,7 +562,7 @@ def mode_generate(conn, opts) -> dict:
         d = r["domain"]
         # belt and braces: the allowlist is applied at fetch AND at generate,
         # because the Tranco list changes between runs
-        if d in tranco or d in manual:
+        if is_allowlisted(d, tranco, manual):
             skipped += 1
             continue
 
