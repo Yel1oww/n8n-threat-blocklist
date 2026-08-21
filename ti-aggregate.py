@@ -153,7 +153,7 @@ def http(url, data=None, headers=None, timeout=120):
 INFRA_ALLOWLIST = {
     # list distribution
     "raw.githubusercontent.com", "github.com", "api.github.com",
-    "objects.githubusercontent.com", "codeload.github.com",
+    "objects.githubusercontent.com", "codeload.github.com", "cdn.jsdelivr.net",
     # feed sources
     "abuse.ch", "urlhaus.abuse.ch", "urlhaus-api.abuse.ch",
     "threatfox.abuse.ch", "threatfox-api.abuse.ch", "auth.abuse.ch",
