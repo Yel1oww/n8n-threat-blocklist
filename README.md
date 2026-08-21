@@ -166,7 +166,7 @@ Placeholders to fill after importing:
 
 API keys live in `/etc/n8n-ti.env` on the host, never inside a workflow.
 
-Full setup: [SETUP.md](SETUP.md).
+Full setup: [SETUP.md](SETUP-threat-intel.md).
 
 ---
 
