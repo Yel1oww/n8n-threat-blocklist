@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-08-21T14:59:55Z",
+  "generated_at": "2026-08-21T15:06:15Z",
   "strict_count": 403,
-  "aggressive_count": 23797,
+  "aggressive_count": 23796,
   "allowlist_skipped": 0,
   "by_source": {
     "blackbook": 17979,
     "openphish": 239,
     "otx": 470,
-    "threatfox": 5059,
+    "threatfox": 5058,
     "urlhaus": 52
   },
-  "tier_1_domains": 5059,
+  "tier_1_domains": 5058,
   "multi_source_domains": 2
 }
