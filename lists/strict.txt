@@ -1,10 +1,11 @@
 # Strict blocklist
-# Generated 2026-08-21 15:06 UTC by n8n-threat-blocklist
-# 403 domains
+# Generated 2026-08-23 12:00 UTC by n8n-threat-blocklist
+# 440 domains
 # Malware-dedicated infrastructure only. Conservative; safe to subscribe blind.
 # Sources: abuse.ch (ThreatFox, URLhaus), blackbook, OTX, OpenPhish
 # Filtered against the Tranco top 1M. Report false positives via GitHub issues.
 
+188.top
 193-233-126-53.sslip.io
 1hvnc.duckdns.org
 222align.noip.at
@@ -13,6 +14,7 @@ a.bc.285ef6f2.web.mail.cargopaa.com
 a1078269.xsph.ru
 aappicha.ddns.net
 admetricslab.org
+adsgroupsac.com
 ajnfqs.com
 akb.cat
 akmuniverstall.top
@@ -22,6 +24,7 @@ analysis-id-lfg.info
 api-workers.westinsinsurance.com
 api.rh7.ninja
 app-api.embervault.cc
+aprettopizza.world
 atomento10.icu
 attr-sdk.tech
 babmalo.pro
@@ -55,6 +58,7 @@ brlogic.biz
 broadswordcallingdannyboy.com
 brr.1001gacor.org
 brr.sm188daftar.mom
+busshi.moe
 buttresshalcyon.top
 bymeserv.com
 byz.10001slot.org
@@ -62,9 +66,11 @@ byz.sm188dadu.top
 ca242145.tw1.ru
 cagom.run
 candymani-ager.com
+canvas-35.com
 capitalscope.news
 carpet-sail.com
 casinodas.com
+cat.jumpskyhigh.com
 cc666mzpsjhn3yi6t7hqkwi5thjeh7prxg3mndpceb7xtchsbsmct3ad.onion
 cdn.falconworks.cc
 cdn.winservers-network.com
@@ -77,8 +83,10 @@ chief-ignite.pro
 ciwid.run
 clavee202620262026final.duckdns.org
 cleasion.click
+cloudenterprise26.com
 cm163840.tw1.ru
 coldformat.info
+config.hubdisplay.lol
 connectme.mom
 connxt.ttlock.ma
 console.plan-stack2.click
@@ -102,12 +110,18 @@ dez.11gokil.org
 diganaa.live
 digitalhoster.4nmn.com
 djrtt.run
+dl.frostwillow.cc
+dollllar881122.icu
 drikkiianll.com
+drum.jumpskyhigh.com
+drum.poconodessertco.com
 dsfdsfs.xsph.ru
 dubl1allremriki.com
 dubl2allremriki.com
+duke.poconodessertco.com
 dyky.press
 dynk.run
+ecocrypt.shop
 eggsjelly.space
 el-4dfmiwuflwf.digital
 el-5fmkdhfsfdsg.digital
@@ -131,11 +145,13 @@ freedomfamiliesfoundation.org
 ftp.untentepc.info
 fypal.run
 gate.runmanor.click
+gearlipi72.life
 genow.run
 ges.1001gacor.org
 ges.1131gg.org
 ges.sm188dadu.top
 ges.sm188daftar.mom
+gfoqsewps57xcyxoedle2gd53o6jne6y5nq5eh25muksqwzutzq7b3ad.onion
 glara.info
 glimqra.click
 godbleesss8912.life
@@ -152,6 +168,7 @@ gw.cedarvault.cc
 hadiordan.lol
 hair-result.xyz
 halakw.com
+harp.poconodessertco.com
 hgjbp.run
 hhwqascxsdr.cc
 hornbeamcairn.top
@@ -161,6 +178,7 @@ hulusi.lol
 hulywali.space
 hxbgruop.com
 hype.activeworkshops.com
+ieji.de
 ilikegoodpersontoo.com
 indigocrest.top
 infodatalis.com
@@ -181,6 +199,7 @@ kee.10001slot.org
 kee.sm188dadu.top
 kepov.run
 kerosand.net
+kestane.lol
 kestrelgable.top
 ket.1001gacor.org
 ket.1131gg.org
@@ -197,6 +216,7 @@ kra.sm188daftar.mom
 krem.mesoptik.com
 kupzovo.shop
 kypa.press
+leaf.lonnyross.com
 lenabwvtialpopito.com
 licz.run
 lindenplumb.top
@@ -218,15 +238,18 @@ markthunder.xyz
 mathandchessss.com
 maymun.lol
 mehig.run
+metric.gardenpark.click
 minak.run
 missed-upd.happyhatterreviews.com
 mmgdt.run
 moleroos.pro
+mon-blanc-01.cfd
 monitor9.easttrail5.xyz
 mortilostart.com
 mrlketo.shop
 mybananamoneygrammafon.com
 mygar.run
+mypamella.xyz
 mzrln.run
 nafnifnuf.live
 nailpiuwe8921.life
@@ -254,6 +277,7 @@ nu7.sm188dadu.top
 nygz.run
 office356.icu
 olivenarthex.top
+omnicyber3.shop
 onboarding.radiantfluxstudio.com
 oneai.icu
 oneai.surf
@@ -261,6 +285,7 @@ opendocumentsforfree.com
 ou.qymj.ru
 pa-api.salondeguitaredemontreal.com
 palaera.click
+peermangoz.me
 pergolamimosa.top
 peridotskerry.top
 pexab.run
@@ -278,7 +303,9 @@ poplarmemoir.top
 post-ld.pgcountyliving.com
 prc.10001toto.org
 prc.sm188daftar.com
+pullout.ezgateway.net
 pulse.pulsevectorcore6.lol
+qaz4.com
 qiekqweantyyr.com
 qmzks.run
 qstfs.run
@@ -288,6 +315,8 @@ qupt.run
 qv.gahq.ru
 range2021.kozow.com
 raw.githubusercontent.co
+relay.serverkinetices.cfd
+report.pantrystudio18.lol
 revteoaraenttf.com
 rex.1001gacor.org
 rex.1131gg.org
@@ -301,6 +330,7 @@ rnd.10001slot.org
 rnd.sm188dadu.top
 rnd.sm188daftar.cfd
 rogethapi2134.life
+rollcoil.cfd
 root-cherry.com
 rowanportico.global
 rukkoldauwe87.xyz
@@ -309,6 +339,7 @@ ryr.1131gg.org
 rz45lyi2ehl2e2xs3ivwbah65tumebztmypmtqpc6cigc3wadwjicgad.onion
 s33mon3y.noip.at
 salfetka.anix-to.com
+scrnmailpsie.com
 searchranktraffic.live
 seat-aviation.com
 secretpi88122.life
@@ -334,6 +365,7 @@ snhnv.run
 sofazinc.cfd
 soft-update.dev
 solirpa.click
+solsecflow.shop
 sorov.run
 sotopiingpi91.xyz
 sound-obstacle.com
@@ -350,6 +382,7 @@ sto.1001gacor.org
 sto.1131gg.org
 sto.sm188dadu.top
 sto.sm188daftar.mom
+strongerpi921.life
 stustverif.com
 subscontract.axisstone.de
 sukum.run
@@ -359,6 +392,7 @@ tax.11gokil.org
 tax.sm188dnsx.top
 telemetryloop.net
 testingherenigger.loophole.site
+thunderstopui912.life
 timelevel12.com
 tip.10001slot.org
 tipaq.run
@@ -376,8 +410,10 @@ umbergalleon.top
 utuhv.cn
 valeroks.click
 valokse.lol
+vasino921.life
 vclpg.run
 verdigrisroundel.top
+verico-de-id.beer
 verokase.xyz
 vexdico.shop
 viaductanthology.top
@@ -406,5 +442,6 @@ zaeroks.website
 zaf.11gokil.org
 zaf.sm188dnsx.top
 zakuiru.shop
+zonxh.shop
 zovdt.run
 zxdaone.click
