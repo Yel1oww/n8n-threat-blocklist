@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-10-18T12:00:12Z",
-  "strict_count": 3713,
-  "aggressive_count": 53934,
-  "allowlist_skipped": 25,
+  "generated_at": "2026-10-25T12:00:21Z",
+  "strict_count": 4375,
+  "aggressive_count": 57521,
+  "allowlist_skipped": 23,
   "by_source": {
-    "blackbook": 17989,
-    "openphish": 249,
-    "otx": 3204,
-    "threatfox": 31903,
-    "urlhaus": 903
+    "blackbook": 17982,
+    "openphish": 184,
+    "otx": 3426,
+    "threatfox": 35337,
+    "urlhaus": 975
   },
-  "tier_1_domains": 31903,
-  "multi_source_domains": 289
+  "tier_1_domains": 35337,
+  "multi_source_domains": 360
 }
